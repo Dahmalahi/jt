@@ -1,8 +1,8 @@
 # temporal
-
+<img width="96" height="96" alt="Temporal" src="https://github.com/user-attachments/assets/b92a95e1-adb3-469f-8dbe-701a97313e9d" />
 > a micro-blogging J2ME client — CLDC 1.1 / MIDP 2.0
 
-**version 1.1** · by **aditya** · [Dash Animation V2 on YouTube](https://www.youtube.com/@dash______animationv2)
+**version 1.3 mod** · by **aditya** and DASH ANIMATION V2 [Dash Animation V2 on YouTube](https://www.youtube.com/@dash______animationv2)
 
 ---
 
@@ -10,7 +10,7 @@
 
 temporal is a lightweight social micro-blogging app built for old-school Java ME phones. it runs entirely on CLDC 1.1 and MIDP 2.0 — no modern smartphone required. think early 2000s Nokia vibes, but posting to a real REST API.
 
-backend: `temporal.dedomil.workers.dev`
+backend:`temporal.dedomil.workers.dev`
 
 ---
 
@@ -31,7 +31,7 @@ backend: `temporal.dedomil.workers.dev`
 
 ---
 
-## what's new in v1.1
+## what's new in v1.3
 
 ### bug fixes
 
