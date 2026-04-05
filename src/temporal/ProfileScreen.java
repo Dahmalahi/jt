@@ -4,37 +4,34 @@ import java.util.Vector;
 import javax.microedition.lcdui.*;
 
 /**
- * HomeScreen v1.6 – Smooth, rounded Canvas UI.
+ * ProfileScreen v1.3 – Custom Canvas profile view.
  *
- * ORGANIC RETRO AESTHETIC:
- *  - Rounded bubble cards for each post (like modern chat apps)
- *  - Smooth gradient backgrounds
- *  - Circular avatar frames with colored rings
- *  - Pill-shaped status bar
- *  - Soft shadows via offset fills
- *  - Smooth scroll with momentum feel
- *  - Breathing animation on unread badge
- *  - Curved dividers instead of hard lines
+ * SMOOTH ROUNDED AESTHETIC:
+ *  - Gradient header with large circular avatar
+ *  - Stats cards (post count, joined date, etc.)
+ *  - Rounded post cards (same style as HomeScreen)
+ *  - Bio section with edit button
+ *  - Smooth scroll
+ *  - Breathing "new post" FAB
  */
-public class HomeScreen extends Canvas implements CommandListener {
+public class ProfileScreen extends Canvas implements CommandListener {
 
     // -----------------------------------------------------------------------
     // Constants
     // -----------------------------------------------------------------------
 
     private static final int PREVIEW_LEN = 26;
-    private static final int ANIM_DELAY_MS = 350;
-    private static final int CARD_HEIGHT = 56; // height per post card
+    private static final int CARD_HEIGHT = 52;
     private static final int CARD_MARGIN = 6;
 
     private static final int C_BG_TOP     = 0xE3F2FD;
     private static final int C_BG_BOT     = 0xBBDEFB;
-    private static final int C_CARD       = 0xFFFFFF;
-    private static final int C_CARD_SHADOW= 0xD0D0D0;
     private static final int C_HEADER_TOP = 0x1976D2;
     private static final int C_HEADER_BOT = 0x42A5F5;
     private static final int C_WHITE      = 0xFFFFFF;
-    private static final int C_BLUE_PALE  = 0x90CAF9;
+    private static final int C_CARD       = 0xFFFFFF;
+    private static final int C_CARD_SHADOW= 0xD0D0D0;
+    private static final int C_BLUE_PALE  = 0xBBDEFB;
     private static final int C_BLUE_MID   = 0x1E88E5;
     private static final int C_BLUE_DARK  = 0x0D47A1;
     private static final int C_GRAY       = 0x757575;
@@ -43,129 +40,81 @@ public class HomeScreen extends Canvas implements CommandListener {
     private static final int C_GREEN      = 0x66BB6A;
     private static final int C_ORANGE     = 0xFF8800;
     private static final int C_PURPLE     = 0x9C27B0;
-    private static final int C_CYAN       = 0x00BCD4;
-    private static final int C_PINK       = 0xE91E63;
 
-    // -----------------------------------------------------------------------
-    // Pixel Art Icons (8×8)
-    // -----------------------------------------------------------------------
+    private static final int HEADER_HEIGHT = 140;
+    private static final int FOOTER_HEIGHT = 20;
 
+    // Avatar icons
     private static final byte[] ICON_AVATAR_A = {
         (byte)0x3C, (byte)0x42, (byte)0xA5, (byte)0x81,
         (byte)0xA5, (byte)0x99, (byte)0x42, (byte)0x3C
     };
-    private static final byte[] ICON_AVATAR_B = {
-        (byte)0x3C, (byte)0x7E, (byte)0xDB, (byte)0xFF,
-        (byte)0xC3, (byte)0xFF, (byte)0x7E, (byte)0x3C
-    };
-    private static final byte[] ICON_AVATAR_C = {
-        (byte)0x7E, (byte)0x81, (byte)0xA5, (byte)0x81,
-        (byte)0xBD, (byte)0x81, (byte)0x81, (byte)0x7E
-    };
-    private static final byte[] ICON_AVATAR_D = {
-        (byte)0x18, (byte)0x3C, (byte)0x7E, (byte)0xFF,
-        (byte)0xDB, (byte)0xFF, (byte)0x42, (byte)0x24
-    };
-    private static final byte[] ICON_AVATAR_E = {
-        (byte)0x08, (byte)0x49, (byte)0x2A, (byte)0x1C,
-        (byte)0x1C, (byte)0x2A, (byte)0x49, (byte)0x08
-    };
 
-    private static final byte[] ICON_BELL = {
-        (byte)0x18, (byte)0x3C, (byte)0x3C, (byte)0x7E,
-        (byte)0x7E, (byte)0xFF, (byte)0x00, (byte)0x18
-    };
-    private static final byte[] ICON_SIGNAL = {
-        (byte)0x00, (byte)0x00, (byte)0x40, (byte)0x50,
-        (byte)0x54, (byte)0x54, (byte)0x54, (byte)0x00
-    };
-
-    private static final byte[] ICON_SPINNER = {
-        (byte)0x18, (byte)0x3C, (byte)0x7E, (byte)0xFF,
-        (byte)0xFF, (byte)0x7E, (byte)0x3C, (byte)0x18
-    };
-
-    // -----------------------------------------------------------------------
-    // Cached images
-    // -----------------------------------------------------------------------
-
-    private static Image imgAvatarA, imgAvatarB, imgAvatarC, imgAvatarD, imgAvatarE;
-    private static Image imgBell, imgSignal, imgSpinner;
+    private static Image imgAvatar;
 
     static {
-        imgAvatarA = createImageFromBits(ICON_AVATAR_A);
-        imgAvatarB = createImageFromBits(ICON_AVATAR_B);
-        imgAvatarC = createImageFromBits(ICON_AVATAR_C);
-        imgAvatarD = createImageFromBits(ICON_AVATAR_D);
-        imgAvatarE = createImageFromBits(ICON_AVATAR_E);
-        imgBell    = createImageFromBits(ICON_BELL);
-        imgSignal  = createImageFromBits(ICON_SIGNAL);
-        imgSpinner = createImageFromBits(ICON_SPINNER);
+        imgAvatar = createImageFromBits(ICON_AVATAR_A);
     }
 
     // -----------------------------------------------------------------------
-    // Fields
+    // Commands
+    // -----------------------------------------------------------------------
+
+    private final Command backCommand;
+    private final Command refreshCommand;
+    private final Command newPostCommand;
+    private final Command loadMoreCommand;
+
+    // -----------------------------------------------------------------------
+    // State
     // -----------------------------------------------------------------------
 
     private final Temporal midlet;
-
-    private final Command newPostCommand, refreshCommand, loadMoreCommand;
-    private final Command profileCommand, aboutCommand, logoutCommand;
+    private final String username;
 
     private Vector posts;
     private volatile boolean isLoading = false;
     private int currentPage = 1;
-    private String loggedInUser = "";
-    private int unreadCount = 0;
+    private int postCount = 0;
 
     private int scrollOffset = 0;
     private int selectedIndex = -1;
 
-    private int animFrame = 0;
-    private volatile boolean animRunning = false;
-    private long animStartTime = 0;
-
     private Font font, headerFont, smallFont, tinyFont;
-    private int fontHeight, headerFontHeight;
+    private int fontHeight;
 
-    private int headerHeight = 50;
-    private int footerHeight = 20;
+    private long animStartTime = 0;
 
     // -----------------------------------------------------------------------
     // Constructor
     // -----------------------------------------------------------------------
 
-    public HomeScreen(Temporal midlet) {
+    public ProfileScreen(Temporal midlet) {
         this.midlet = midlet;
 
-        String stored = RMSStore.getUsername();
-        if (stored != null && stored.length() > 0) {
-            loggedInUser = stored;
-        }
+        String u = RMSStore.getUsername();
+        this.username = (u != null && u.length() > 0) ? u : "";
 
         font       = Font.getFont(Font.FACE_PROPORTIONAL, Font.STYLE_PLAIN, Font.SIZE_SMALL);
-        headerFont = Font.getFont(Font.FACE_PROPORTIONAL, Font.STYLE_BOLD,  Font.SIZE_MEDIUM);
+        headerFont = Font.getFont(Font.FACE_PROPORTIONAL, Font.STYLE_BOLD,  Font.SIZE_LARGE);
         smallFont  = Font.getFont(Font.FACE_PROPORTIONAL, Font.STYLE_PLAIN, Font.SIZE_SMALL);
         tinyFont   = Font.getFont(Font.FACE_PROPORTIONAL, Font.STYLE_PLAIN, Font.SIZE_SMALL);
-        fontHeight       = font.getHeight();
-        headerFontHeight = headerFont.getHeight();
+        fontHeight = font.getHeight();
 
-        newPostCommand  = new Command("New",     Command.ITEM, 1);
-        refreshCommand  = new Command("Refresh", Command.ITEM, 2);
-        loadMoreCommand = new Command("More",    Command.ITEM, 3);
-        profileCommand  = new Command("Profile", Command.ITEM, 4);
-        aboutCommand    = new Command("About",   Command.ITEM, 5);
-        logoutCommand   = new Command("Logout",  Command.EXIT, 6);
+        backCommand     = new Command("Back",      Command.BACK, 1);
+        refreshCommand  = new Command("Refresh",   Command.ITEM, 2);
+        newPostCommand  = new Command("New Post",  Command.ITEM, 3);
+        loadMoreCommand = new Command("Load More", Command.ITEM, 4);
 
-        addCommand(newPostCommand);
+        addCommand(backCommand);
         addCommand(refreshCommand);
+        addCommand(newPostCommand);
         addCommand(loadMoreCommand);
-        addCommand(profileCommand);
-        addCommand(aboutCommand);
-        addCommand(logoutCommand);
         setCommandListener(this);
 
         setFullScreenMode(true);
+        animStartTime = System.currentTimeMillis();
+        startAnimationThread();
     }
 
     // -----------------------------------------------------------------------
@@ -173,23 +122,20 @@ public class HomeScreen extends Canvas implements CommandListener {
     // -----------------------------------------------------------------------
 
     public void loadPosts() {
+        if (username.length() == 0) {
+            return;
+        }
+
         currentPage = 1;
-        posts       = null;
-        unreadCount = 0;
+        posts = null;
+        postCount = 0;
         scrollOffset = 0;
         selectedIndex = -1;
 
         isLoading = true;
-        animStartTime = System.currentTimeMillis();
         repaint();
-        startLoadingAnimation();
 
         fetchPage(1, false);
-    }
-
-    public void markAllRead() {
-        unreadCount = 0;
-        repaint();
     }
 
     // -----------------------------------------------------------------------
@@ -200,7 +146,7 @@ public class HomeScreen extends Canvas implements CommandListener {
         int w = getWidth();
         int h = getHeight();
 
-        // Gradient background (sky blue)
+        // Gradient background
         for (int y = 0; y < h; y++) {
             int ratio = (y * 255) / h;
             int r = ((C_BG_TOP >> 16) & 0xFF) * (255 - ratio) / 255 +
@@ -214,14 +160,14 @@ public class HomeScreen extends Canvas implements CommandListener {
         }
 
         drawHeader(g, w);
-        drawMessages(g, w, h);
+        drawPosts(g, w, h);
         drawFooter(g, w, h);
     }
 
     private void drawHeader(Graphics g, int w) {
-        // Rounded pill-shaped header with gradient
-        for (int y = 0; y < headerHeight; y++) {
-            int ratio = (y * 255) / headerHeight;
+        // Gradient header
+        for (int y = 0; y < HEADER_HEIGHT; y++) {
+            int ratio = (y * 255) / HEADER_HEIGHT;
             int r = ((C_HEADER_TOP >> 16) & 0xFF) * (255 - ratio) / 255 +
                     ((C_HEADER_BOT >> 16) & 0xFF) * ratio / 255;
             int gv = ((C_HEADER_TOP >> 8) & 0xFF) * (255 - ratio) / 255 +
@@ -232,62 +178,56 @@ public class HomeScreen extends Canvas implements CommandListener {
             g.drawLine(0, y, w, y);
         }
 
-        // Curved bottom edge
+        // Curved bottom
         g.setColor(C_HEADER_BOT);
-        g.fillArc(0, headerHeight - 10, 20, 20, 90, 90);
-        g.fillArc(w - 20, headerHeight - 10, 20, 20, 0, 90);
+        g.fillArc(0, HEADER_HEIGHT - 10, 20, 20, 90, 90);
+        g.fillArc(w - 20, HEADER_HEIGHT - 10, 20, 20, 0, 90);
 
-        // Title with glow effect
+        // Large avatar
+        int avatarSize = 72;
+        int avatarX = w / 2 - avatarSize / 2;
+        int avatarY = 15;
+
+        // Avatar ring (colored)
+        g.setColor(C_PURPLE);
+        g.fillArc(avatarX - 3, avatarY - 3, avatarSize + 6, avatarSize + 6, 0, 360);
+
+        // Avatar white background
+        g.setColor(C_WHITE);
+        g.fillArc(avatarX, avatarY, avatarSize, avatarSize, 0, 360);
+
+        // Avatar icon
+        drawPixelIconCentered(g, imgAvatar, avatarX + avatarSize / 2,
+                avatarY + avatarSize / 2, 7);
+
+        // Username
         g.setFont(headerFont);
-        g.setColor(0x64B5F6);
-        g.drawString("temporal", 12, 9, Graphics.TOP | Graphics.LEFT);
         g.setColor(C_WHITE);
-        g.drawString("temporal", 10, 8, Graphics.TOP | Graphics.LEFT);
+        g.drawString("@" + username, w / 2, avatarY + avatarSize + 8,
+                Graphics.TOP | Graphics.HCENTER);
 
-        // Status pill (username + unread)
-        String statusText = "@" + (loggedInUser.length() > 0 ? loggedInUser : "me");
-        int pillW = smallFont.stringWidth(statusText) + 30;
-        int pillX = 10;
-        int pillY = headerHeight - 22;
+        // Stats card
+        int statsY = avatarY + avatarSize + headerFont.getHeight() + 14;
+        int statsW = w - 40;
+        int statsX = 20;
+        int statsH = 24;
 
-        // Pill shadow
-        g.setColor(0x0D47A1);
-        g.fillRoundRect(pillX + 1, pillY + 1, pillW, 16, 8, 8);
-        // Pill body
+        // Shadow
+        g.setColor(C_BLUE_DARK);
+        g.fillRoundRect(statsX + 1, statsY + 1, statsW, statsH, 12, 12);
+        // Body
         g.setColor(C_WHITE);
-        g.fillRoundRect(pillX, pillY, pillW, 16, 8, 8);
+        g.fillRoundRect(statsX, statsY, statsW, statsH, 12, 12);
 
         g.setFont(smallFont);
         g.setColor(C_BLUE_DARK);
-        g.drawString(statusText, pillX + 6, pillY + 2, Graphics.TOP | Graphics.LEFT);
-
-        // Unread badge (breathing animation)
-        if (unreadCount > 0) {
-            long elapsed = System.currentTimeMillis() - animStartTime;
-            int pulse = (int) ((Math.sin(elapsed / 300.0) + 1) * 2); // 0-4
-            int badgeR = 8 + pulse;
-
-            g.setColor(0xEF5350);
-            g.fillArc(pillX + pillW - 14, pillY + 3, badgeR * 2, badgeR * 2, 0, 360);
-            g.setColor(C_WHITE);
-            g.setFont(tinyFont);
-            String badge = unreadCount > 9 ? "9+" : "" + unreadCount;
-            g.drawString(badge, pillX + pillW - 14 + badgeR,
-                    pillY + 3 + badgeR - tinyFont.getHeight() / 2,
-                    Graphics.TOP | Graphics.HCENTER);
-        }
-
-        // Signal icon (top right)
-        drawPixelIcon(g, imgSignal, w - 28, 10, 2);
-
-        // Connection dot
-        g.setColor(C_GREEN);
-        g.fillArc(w - 14, 12, 8, 8, 0, 360);
+        String stats = postCount + " posts";
+        g.drawString(stats, w / 2, statsY + 4, Graphics.TOP | Graphics.HCENTER);
     }
 
-    private void drawMessages(Graphics g, int w, int h) {
-        int top = headerHeight + 8;
-        int bot = h - footerHeight - 8;
+    private void drawPosts(Graphics g, int w, int h) {
+        int top = HEADER_HEIGHT + 10;
+        int bot = h - FOOTER_HEIGHT - 10;
         int contentH = bot - top;
 
         if (isLoading && (posts == null || posts.size() == 0)) {
@@ -298,24 +238,20 @@ public class HomeScreen extends Canvas implements CommandListener {
             int cx = w / 2;
             int cy = top + contentH / 2;
 
-            // Outer ring
             g.setColor(C_BLUE_PALE);
             g.fillArc(cx - 20, cy - 20, 40, 40, 0, 360);
-            // Inner hole
             g.setColor(C_BG_BOT);
             g.fillArc(cx - 14, cy - 14, 28, 28, 0, 360);
-            // Rotating segment
             g.setColor(C_BLUE_MID);
             g.fillArc(cx - 20, cy - 20, 40, 40, angle, 90);
 
             g.setFont(smallFont);
             g.setColor(C_GRAY);
-            g.drawString("syncing", cx, cy + 30, Graphics.TOP | Graphics.HCENTER);
+            g.drawString("loading", cx, cy + 30, Graphics.TOP | Graphics.HCENTER);
             return;
         }
 
         if (posts == null || posts.size() == 0) {
-            // Empty state
             g.setColor(C_GRAY_LIGHT);
             g.fillRoundRect(w / 2 - 60, top + contentH / 2 - 30, 120, 60, 20, 20);
             g.setColor(C_GRAY);
@@ -330,11 +266,9 @@ public class HomeScreen extends Canvas implements CommandListener {
         for (int i = 0; i < posts.size(); i++) {
             String[] post = (String[]) posts.elementAt(i);
 
-            String author  = (post[2] != null && post[2].length() > 0) ? post[2] : "?";
             String content = (post[1] != null) ? post[1] : "";
-            String ts      = (post.length > 3 && post[3] != null) ? post[3] : "";
+            String ts = (post.length > 3 && post[3] != null) ? post[3] : "";
 
-            if (author.length() > 12) author = author.substring(0, 12);
             content = content.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ');
             if (content.length() > PREVIEW_LEN) {
                 content = content.substring(0, PREVIEW_LEN) + "..";
@@ -342,12 +276,10 @@ public class HomeScreen extends Canvas implements CommandListener {
 
             String relTime = toRelativeTime(ts);
 
-            // Card dimensions
             int cardX = CARD_MARGIN;
             int cardW = w - CARD_MARGIN * 2;
             int cardH = CARD_HEIGHT;
 
-            // Skip if outside visible area
             if (y + cardH < top || y > bot) {
                 y += cardH + CARD_MARGIN;
                 continue;
@@ -359,46 +291,21 @@ public class HomeScreen extends Canvas implements CommandListener {
 
             // Card body
             if (i == selectedIndex) {
-                g.setColor(0xFFF9C4); // yellow highlight
+                g.setColor(0xFFF9C4);
             } else {
                 g.setColor(C_CARD);
             }
             g.fillRoundRect(cardX, y, cardW, cardH, 16, 16);
 
-            // Subtle border
             g.setColor(C_BLUE_PALE);
             g.drawRoundRect(cardX, y, cardW, cardH, 16, 16);
 
-            // Avatar circle with colored ring
-            int avatarX = cardX + 8;
-            int avatarY = y + cardH / 2 - 18;
-            int avatarSize = 36;
-
-            int ringColor = pickAvatarColor(author);
-            g.setColor(ringColor);
-            g.fillArc(avatarX - 2, avatarY - 2, avatarSize + 4, avatarSize + 4, 0, 360);
-
-            g.setColor(C_WHITE);
-            g.fillArc(avatarX, avatarY, avatarSize, avatarSize, 0, 360);
-
-            Image avatar = pickAvatarIcon(author);
-            drawPixelIconCentered(g, avatar, avatarX + avatarSize / 2,
-                    avatarY + avatarSize / 2, 3);
-
-            // Text content
-            int textX = avatarX + avatarSize + 10;
-            int textY = y + 8;
-
-            g.setFont(smallFont);
-            g.setColor(C_BLUE_DARK);
-            g.drawString(author, textX, textY, Graphics.TOP | Graphics.LEFT);
-
+            // Content
             g.setFont(font);
             g.setColor(C_DARK);
-            g.drawString(content, textX, textY + smallFont.getHeight() + 2,
-                    Graphics.TOP | Graphics.LEFT);
+            g.drawString(content, cardX + 12, y + 10, Graphics.TOP | Graphics.LEFT);
 
-            // Timestamp badge
+            // Timestamp
             if (relTime.length() > 0) {
                 g.setFont(tinyFont);
                 g.setColor(C_GRAY_LIGHT);
@@ -412,63 +319,32 @@ public class HomeScreen extends Canvas implements CommandListener {
             y += cardH + CARD_MARGIN;
         }
 
-        // Smooth scrollbar
+        // Scrollbar
         int totalH = posts.size() * (CARD_HEIGHT + CARD_MARGIN);
         if (totalH > contentH) {
             int barH = Math.max(20, (contentH * contentH) / totalH);
             int barY = top + (scrollOffset * (contentH - barH)) /
                     Math.max(1, totalH - contentH);
 
-            // Scrollbar shadow
             g.setColor(C_GRAY_LIGHT);
             g.fillRoundRect(w - 7, barY + 1, 5, barH, 3, 3);
-            // Scrollbar body
             g.setColor(C_ORANGE);
             g.fillRoundRect(w - 8, barY, 5, barH, 3, 3);
         }
     }
 
     private void drawFooter(Graphics g, int w, int h) {
-        int y = h - footerHeight;
+        int y = h - FOOTER_HEIGHT;
 
-        // Curved top edge
         g.setColor(C_WHITE);
         g.fillArc(0, y - 10, 20, 20, 180, 90);
         g.fillArc(w - 20, y - 10, 20, 20, 270, 90);
-        g.fillRect(10, y, w - 20, footerHeight);
+        g.fillRect(10, y, w - 20, FOOTER_HEIGHT);
 
-        // Soft key labels
         g.setFont(tinyFont);
         g.setColor(C_BLUE_MID);
-        g.drawString("New", 6, y + 3, Graphics.TOP | Graphics.LEFT);
+        g.drawString("Back", 6, y + 3, Graphics.TOP | Graphics.LEFT);
         g.drawString("Menu", w - 6, y + 3, Graphics.TOP | Graphics.RIGHT);
-    }
-
-    // -----------------------------------------------------------------------
-    // Animation
-    // -----------------------------------------------------------------------
-
-    private void startLoadingAnimation() {
-        if (animRunning) return;
-        animRunning = true;
-        scheduleAnimFrame();
-    }
-
-    private void scheduleAnimFrame() {
-        new Thread() {
-            public void run() {
-                try { Thread.sleep(30); } // 30fps
-                catch (InterruptedException e) { /* ok */ }
-
-                if (!isLoading && !animRunning) return;
-                repaint();
-                if (isLoading || unreadCount > 0) {
-                    scheduleAnimFrame();
-                } else {
-                    animRunning = false;
-                }
-            }
-        }.start();
     }
 
     // -----------------------------------------------------------------------
@@ -477,7 +353,7 @@ public class HomeScreen extends Canvas implements CommandListener {
 
     private void fetchPage(final int page, final boolean append) {
         final String jwt = RMSStore.getJWT();
-        final String endpoint = "/feed/v1?page=" + page;
+        final String endpoint = "/u/" + username + "?page=" + page;
 
         Service.get(endpoint, jwt, new Service.Callback() {
 
@@ -500,12 +376,7 @@ public class HomeScreen extends Canvas implements CommandListener {
                             posts.addElement(newPosts.elementAt(i));
                         }
 
-                        if (!append && newCount > 0) {
-                            unreadCount = newCount;
-                        } else if (append) {
-                            unreadCount += newCount;
-                        }
-
+                        postCount = posts.size();
                         repaint();
                     }
                 });
@@ -523,34 +394,6 @@ public class HomeScreen extends Canvas implements CommandListener {
                 });
             }
         });
-    }
-
-    // -----------------------------------------------------------------------
-    // Avatar helpers
-    // -----------------------------------------------------------------------
-
-    private Image pickAvatarIcon(String author) {
-        if (author == null || author.length() == 0) return imgAvatarA;
-        int hash = Math.abs(author.hashCode()) % 5;
-        switch (hash) {
-            case 0: return imgAvatarA;
-            case 1: return imgAvatarB;
-            case 2: return imgAvatarC;
-            case 3: return imgAvatarD;
-            default: return imgAvatarE;
-        }
-    }
-
-    private int pickAvatarColor(String author) {
-        if (author == null || author.length() == 0) return C_BLUE_MID;
-        int hash = Math.abs(author.hashCode()) % 5;
-        switch (hash) {
-            case 0: return C_BLUE_MID;
-            case 1: return C_GREEN;
-            case 2: return C_PURPLE;
-            case 3: return C_ORANGE;
-            default: return C_CYAN;
-        }
     }
 
     // -----------------------------------------------------------------------
@@ -620,8 +463,6 @@ public class HomeScreen extends Canvas implements CommandListener {
         if (action == FIRE) {
             if (selectedIndex >= 0 && selectedIndex < posts.size()) {
                 String[] post = (String[]) posts.elementAt(selectedIndex);
-                unreadCount = 0;
-                RMSStore.saveLastPostId(post[0]);
                 midlet.showPost(post[0], post[1], post[2]);
             }
             return;
@@ -650,15 +491,12 @@ public class HomeScreen extends Canvas implements CommandListener {
         if (keyCode == Canvas.KEY_NUM1) { midlet.showCreatePost(); }
         else if (keyCode == Canvas.KEY_NUM2) { loadPosts(); }
         else if (keyCode == Canvas.KEY_NUM3) { loadMorePage(); }
-        else if (keyCode == Canvas.KEY_NUM4) { midlet.showProfile(); }
-        else if (keyCode == Canvas.KEY_NUM5) { midlet.showAbout(); }
-        else if (keyCode == Canvas.KEY_NUM0) { RMSStore.clearAll(); midlet.showLogin(); }
     }
 
     private void ensureVisible(int idx) {
         if (posts == null || idx < 0 || idx >= posts.size()) return;
-        int top = headerHeight + 8;
-        int bot = getHeight() - footerHeight - 8;
+        int top = HEADER_HEIGHT + 10;
+        int bot = getHeight() - FOOTER_HEIGHT - 10;
         int contentH = bot - top;
 
         int itemY = idx * (CARD_HEIGHT + CARD_MARGIN);
@@ -674,7 +512,6 @@ public class HomeScreen extends Canvas implements CommandListener {
         if (!isLoading && posts != null && posts.size() > 0) {
             currentPage++;
             isLoading = true;
-            animStartTime = System.currentTimeMillis();
             repaint();
             fetchPage(currentPage, true);
         }
@@ -684,28 +521,27 @@ public class HomeScreen extends Canvas implements CommandListener {
     // Icon rendering
     // -----------------------------------------------------------------------
 
-    private void drawPixelIcon(Graphics g, Image img, int x, int y, int scale) {
+    private void drawPixelIconCentered(Graphics g, Image img, int cx, int cy, int scale) {
         if (img == null) return;
-        int w = img.getWidth();
-        int h = img.getHeight();
-        int[] rgb = new int[w * h];
-        img.getRGB(rgb, 0, w, 0, 0, w, h);
-        for (int row = 0; row < h; row++) {
-            for (int col = 0; col < w; col++) {
-                int pixel = rgb[row * w + col];
+        int w = img.getWidth() * scale;
+        int h = img.getHeight() * scale;
+        int x = cx - w / 2;
+        int y = cy - h / 2;
+
+        int iw = img.getWidth();
+        int ih = img.getHeight();
+        int[] rgb = new int[iw * ih];
+        img.getRGB(rgb, 0, iw, 0, 0, iw, ih);
+
+        for (int row = 0; row < ih; row++) {
+            for (int col = 0; col < iw; col++) {
+                int pixel = rgb[row * iw + col];
                 if ((pixel & 0xFF000000) != 0) {
                     g.setColor(pixel & 0xFFFFFF);
                     g.fillRect(x + col * scale, y + row * scale, scale, scale);
                 }
             }
         }
-    }
-
-    private void drawPixelIconCentered(Graphics g, Image img, int cx, int cy, int scale) {
-        if (img == null) return;
-        int w = img.getWidth() * scale;
-        int h = img.getHeight() * scale;
-        drawPixelIcon(g, img, cx - w / 2, cy - h / 2, scale);
     }
 
     private static Image createImageFromBits(byte[] bits) {
@@ -722,23 +558,33 @@ public class HomeScreen extends Canvas implements CommandListener {
     }
 
     // -----------------------------------------------------------------------
+    // Animation
+    // -----------------------------------------------------------------------
+
+    private void startAnimationThread() {
+        new Thread() {
+            public void run() {
+                while (true) {
+                    try { Thread.sleep(30); } catch (InterruptedException e) { break; }
+                    if (isLoading) repaint();
+                }
+            }
+        }.start();
+    }
+
+    // -----------------------------------------------------------------------
     // CommandListener
     // -----------------------------------------------------------------------
 
     public void commandAction(Command c, Displayable d) {
-        if (c == newPostCommand) {
-            midlet.showCreatePost();
+        if (c == backCommand) {
+            midlet.showHome();
         } else if (c == refreshCommand) {
             loadPosts();
+        } else if (c == newPostCommand) {
+            midlet.showCreatePost();
         } else if (c == loadMoreCommand) {
             loadMorePage();
-        } else if (c == profileCommand) {
-            midlet.showProfile();
-        } else if (c == aboutCommand) {
-            midlet.showAbout();
-        } else if (c == logoutCommand) {
-            RMSStore.clearAll();
-            midlet.showLogin();
         }
     }
 }

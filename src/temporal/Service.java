@@ -8,7 +8,9 @@ import javax.microedition.io.Connector;
 import javax.microedition.io.HttpConnection;
 
 public class Service {
-    public static final String BASE_URL = "https://temporal.dedomil.workers.dev/api";
+    // Updated feed endpoint as requested
+    public static final String BASE_URL = "http://temporal.dedomil.workers.dev/api";
+    public static final String FEED_PATH = "/feed/v1";   // New feed endpoint
 
     public interface Callback {
         void onSuccess(String response);
@@ -46,6 +48,9 @@ public class Service {
         }).start();
     }
 
+    /**
+     * GET request - now defaults to the new feed endpoint when used for home/feed
+     */
     public static void get(final String path, final String jwt, final Callback callback) {
         new Thread(new Runnable() {
             public void run() {
@@ -67,9 +72,32 @@ public class Service {
         }).start();
     }
 
+    /**
+     * DELETE request
+     */
+    public static void delete(final String path, final String jwt, final Callback callback) {
+        new Thread(new Runnable() {
+            public void run() {
+                try {
+                    String url = BASE_URL + path;
+                    HttpConnection c = (HttpConnection) Connector.open(url);
+                    c.setRequestMethod("DELETE");
+                    c.setRequestProperty("User-Agent", "j2me/1.0");
+                    c.setRequestProperty("Accept", "*/*");
+                    if (jwt != null) {
+                        c.setRequestProperty("authorization", jwt);
+                    }
+                    processResponse(c, callback);
+                } catch (Exception e) {
+                    if (callback != null)
+                        callback.onError(e.getMessage());
+                }
+            }
+        }).start();
+    }
+
     private static void processResponse(HttpConnection c, Callback callback) throws IOException {
         int code = c.getResponseCode();
-        long len = c.getLength();
         InputStream is = c.openInputStream();
         String response = readFully(is);
         is.close();
